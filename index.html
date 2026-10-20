@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจสอบสถานะเอกสาร</title>
+<!-- ไอคอนเว็บ: วางไฟล์ในโฟลเดอร์ brand/ ไว้ข้าง index.html -->
+<link rel="icon" href="brand/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="64x64" href="brand/favicon.png">
+<link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Sarabun = ตัวอักษรมาตรฐานเอกสารราชการไทย / Mitr = หัวเรื่องและตราประทับ -->
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --desk: #e5eaee;          /* พื้นโต๊ะ */
+    --sheet: #ffffff;         /* กระดาษ */
+    --ink: #1c2631;
+    --muted: #5a6773;
+    --rule: #d6dde3;
+    --rule-strong: #aab6c1;
+    --navy: #143d59;          /* ปุ่ม */
+    --on-navy: #ffffff;
+    --focus: #2f86c4;
+
+    --ok: #1f7a4d;     --ok-ink: #166540;     --ok-tint: #e4f3ea;   --on-ok: #ffffff;
+    --wait: #b7791f;   --wait-ink: #7a5200;   --wait-tint: #fbf0d6;
+    --bad: #c23b2e;    --bad-ink: #9a2a1f;    --bad-tint: #fbe5e1;
+    --none: #7b8794;   --none-ink: #4f5b66;   --none-tint: #eceff2;
+
+    --font-body: "Sarabun", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-head: "Mitr", "Sarabun", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --desk: #0f151a;
+      --sheet: #18212a;
+      --ink: #e8edf1;
+      --muted: #9aa7b2;
+      --rule: #2a3641;
+      --rule-strong: #4a5a69;
+      --navy: #86c3ea;
+      --on-navy: #0d1a24;
+      --focus: #86c3ea;
+
+      --ok: #4cc38a;     --ok-ink: #8fe0b6;     --ok-tint: #16372a;   --on-ok: #07140d;
+      --wait: #e0a93d;   --wait-ink: #f0cf7a;   --wait-tint: #3a2f12;
+      --bad: #ef6a5c;    --bad-ink: #f5a79d;    --bad-tint: #43201b;
+      --none: #7d8a96;   --none-ink: #b3bec7;   --none-tint: #222c35;
+    }
+  }
+
+  /* สีของสถานะรวมในแต่ละใบ */
+  .k-ok   { --k: var(--ok);   --k-ink: var(--ok-ink);   --k-tint: var(--ok-tint); }
+  .k-wait { --k: var(--wait); --k-ink: var(--wait-ink); --k-tint: var(--wait-tint); }
+  .k-bad  { --k: var(--bad);  --k-ink: var(--bad-ink);  --k-tint: var(--bad-tint); }
+  .k-none { --k: var(--none); --k-ink: var(--none-ink); --k-tint: var(--none-tint); }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.65;
+    display: flex;               /* ดันแถบโลโก้ไปติดล่างสุดเมื่อเนื้อหาสั้น */
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .page { width: 100%; max-width: 680px; margin: 0 auto; padding: 28px 20px 48px; flex: 1 0 auto; }
+
+  /* ---------- หัวเว็บ ---------- */
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 44px; font-family: var(--font-head); font-weight: 500; font-size: 18px; }
+  .brand[hidden] { display: none; }
+  .brand-logo { display: block; height: 34px; width: auto; }
+  .brand-logo[hidden] { display: none; }
+
+  h1 {
+    margin: 0 0 10px;
+    font-family: var(--font-head);
+    font-weight: 500;
+    font-size: clamp(30px, 6.4vw, 42px);
+    line-height: 1.35;
+  }
+  .lead { margin: 0 0 32px; max-width: 34em; color: var(--muted); font-size: 18px; }
+
+  .demo-banner {
+    display: none;
+    margin: -12px 0 24px;
+    padding: 10px 14px;
+    border: 1.5px dashed var(--wait);
+    border-radius: 6px;
+    background: var(--wait-tint);
+    color: var(--wait-ink);
+    font-size: 15px;
+  }
+  .demo-banner.show { display: block; }
+
+  /* ---------- ช่องค้นหา (เหมือนช่องกรอกในแบบฟอร์ม) ---------- */
+  label { display: block; margin-bottom: 8px; font-weight: 600; }
+  .field-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .input-wrap { position: relative; min-width: 0; }
+  .input-wrap svg { position: absolute; left: 16px; top: 50%; width: 22px; height: 22px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  input[type="search"] {
+    width: 100%;
+    height: 58px;
+    padding: 0 16px 0 48px;
+    font: inherit;
+    font-size: 18px;
+    color: var(--ink);
+    background: var(--sheet);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="search"]::placeholder { color: var(--muted); opacity: .9; }
+  input[type="search"]:focus { border-color: var(--focus); box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 28%, transparent); }
+  button {
+    height: 58px;
+    padding: 0 30px;
+    font: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--on-navy);
+    background: var(--navy);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  button:hover { filter: brightness(1.14); }
+  button:disabled { opacity: .6; cursor: progress; }
+  .hint { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+
+  /* ---------- ใบผลตรวจเอกสาร ---------- */
+  #result { margin-top: 36px; display: grid; gap: 20px; }
+
+  .sheet {
+    padding: 28px 28px 22px;
+    background: var(--sheet);
+    border-radius: 6px;
+    box-shadow: 0 1px 0 rgba(20, 38, 54, .06), 0 18px 34px -18px rgba(20, 38, 54, .32);
+  }
+  .sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+  .who { min-width: 0; }
+  .name { margin: 0; font-family: var(--font-head); font-weight: 500; font-size: 24px; line-height: 1.4; word-break: break-word; }
+  .tally { margin: 2px 0 0; color: var(--muted); }
+
+  /* ตราประทับ: จุดที่ตั้งใจให้จำ ปรากฏครั้งเดียวตอนแสดงผลลัพธ์ */
+  .stamp {
+    flex: none;
+    margin-top: 4px;
+    padding: 7px 16px 8px;
+    font-family: var(--font-head);
+    font-weight: 500;
+    font-size: 21px;
+    line-height: 1.35;
+    white-space: nowrap;
+    color: var(--k);
+    border: 3px solid var(--k);
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 5px var(--k);
+    transform: rotate(-6deg);
+    opacity: .94;
+    animation: stamp .42s cubic-bezier(.2, 1.4, .4, 1) .1s both;
+  }
+  @keyframes stamp {
+    0%   { transform: rotate(-14deg) scale(1.7); opacity: 0; }
+    55%  { opacity: .94; }
+    100% { transform: rotate(-6deg) scale(1); opacity: .94; }
+  }
+
+  .docs { list-style: none; margin: 22px 0 0; padding: 8px 0 0; border-top: 2px solid var(--ink); }
+  .doc { padding: 11px 0; }
+  .doc-row { display: flex; align-items: center; gap: 12px; }
+  .doc-name { font-weight: 500; }
+  .leader { flex: 1; min-width: 14px; height: 0; border-bottom: 2px dotted var(--rule-strong); transform: translateY(7px); }
+  .doc-status { max-width: 46%; font-weight: 700; text-align: right; }
+  .doc-status.ok { color: var(--ok-ink); }
+  .doc-status.bad { color: var(--bad-ink); }
+  .doc-status.wait { color: var(--wait-ink); }
+  .doc-status.missing, .doc-status.neutral { color: var(--none-ink); }
+
+  /* ช่องติ๊กแบบกระดาษ: รูปทรงต่างกันตามสถานะ ไม่พึ่งสีอย่างเดียว */
+  .mark { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 2px solid var(--none); border-radius: 4px; color: var(--none); }
+  .mark svg { width: 100%; height: 100%; padding: 2px; }
+  .mark.ok { background: var(--ok); border-color: var(--ok); color: var(--on-ok); }
+  .mark.bad { border-color: var(--bad); color: var(--bad); }
+  .mark.wait { border-color: var(--wait); color: var(--wait); }
+  .mark.missing { border-style: dashed; }
+  .mark.sm { width: 18px; height: 18px; border-width: 1.5px; border-radius: 3px; }
+  .mark.sm svg { padding: 1px; }
+
+  .note { margin-top: 20px; padding: 14px 16px; border-radius: 4px; background: var(--k-tint); white-space: pre-line; word-break: break-word; }
+  .note-title { display: block; margin-bottom: 2px; font-size: 15px; font-weight: 700; color: var(--k-ink); }
+
+  /* ภาพตัวอย่างที่ถูกต้อง (ขึ้นใต้แถวเอกสารที่ยังไม่ผ่าน) */
+  .example { margin: 12px 0 2px 38px; }
+  .example summary { cursor: pointer; font-weight: 600; color: var(--k-ink); }
+  .example a { display: block; margin-top: 10px; }
+  .example img { display: block; width: 100%; height: auto; border: 1px solid var(--rule-strong); border-radius: 4px; background: #fff; }
+
+  .sheet-foot { margin: 18px 0 0; font-size: 14px; color: var(--muted); text-align: right; }
+
+  /* ข้อความเมื่อไม่พบ/ผิดพลาด */
+  .msg-text { margin: 6px 0 0; color: var(--muted); }
+  .msg .name { font-size: 20px; }
+
+  /* กำลังค้นหา */
+  .sk { background: var(--rule); border-radius: 4px; animation: pulse 1.3s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .sk-line { height: 18px; margin-top: 12px; }
+  .sk-line.w60 { width: 60%; margin-top: 0; height: 26px; }
+  .sk-line.w40 { width: 40%; }
+  .sk-rows { margin-top: 28px; display: grid; gap: 18px; }
+
+  /* ความหมายสัญลักษณ์ */
+  .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 30px 0 0; padding: 0; font-size: 15px; color: var(--muted); }
+  .legend li { display: inline-flex; align-items: center; gap: 8px; }
+  .contact { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 16px; }
+  .foot { flex: 1 1 280px; margin: 0; font-size: 15px; color: var(--muted); max-width: 36em; white-space: pre-line; }
+  .foot:empty { display: none; }
+  /* ปุ่ม LINE: ใช้สีเขียวของ LINE กับตัวอักษรเข้ม เพื่อให้อ่านชัด */
+  .line-btn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 22px; border-radius: 6px; background: #06c755; color: #07210f; font-weight: 700; text-decoration: none; }
+  .line-btn[hidden] { display: none; }
+  .line-btn:hover { filter: brightness(1.06); }
+
+  /* แถบโลโก้ท้ายหน้า: ภาพเป็น PNG พื้นโปร่งใส รองด้วยแผ่นสีเทา #666666 (ทั้งธีมสว่างและมืด) */
+  .partners { flex: none; padding: 0 20px 32px; }
+  .partners[hidden] { display: none; }
+  .partners-plate { max-width: 680px; margin: 0 auto; padding: 16px 24px; background: #666666; border-radius: 6px; }
+  .partners img { display: block; width: 100%; height: auto; }
+
+  @media (max-width: 520px) {
+    .page { padding-top: 22px; }
+    .brand { margin-bottom: 32px; }
+    .field-row { grid-template-columns: 1fr; }
+    .sheet { padding: 22px 18px 18px; }
+    .sheet-head { flex-direction: column-reverse; gap: 10px; }
+    .stamp { align-self: flex-start; margin: 4px 0 0 4px; font-size: 19px; }
+    .name { font-size: 22px; }
+    .doc-status { max-width: 40%; }
+    .example { margin-left: 0; }
+    .line-btn { width: 100%; }
+    .partners-plate { padding: 12px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stamp { animation: none; }
+    .sk { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="masthead" class="brand" hidden>
+    <img id="brand-logo" class="brand-logo" alt="" hidden>
+    <span id="brand"></span>
+  </div>
+
+  <main>
+    <h1 id="title"></h1>
+    <p id="subtitle" class="lead"></p>
+
+    <div id="demo" class="demo-banner" role="note">
+      โหมดตัวอย่าง: ยังไม่ได้ใส่ API_URL จึงแสดงข้อมูลสมมติ ลองค้นหา <b>สมชาย ใจดี</b> (ผ่านครบ), <b>สมหญิง รักเรียน</b> (ยังไม่ครบ) หรือ <b>ประวิทย์ มั่นคง</b> (ต้องแก้ไข)
+    </div>
+
+    <form id="form" role="search" autocomplete="off">
+      <label for="q" id="qlabel"></label>
+      <div class="field-row">
+        <div class="input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-3.8-3.8"/></svg>
+          <input id="q" type="search" inputmode="search" enterkeyhint="search" required>
+        </div>
+        <button id="go" type="submit">ตรวจสอบ</button>
+      </div>
+      <p id="hint" class="hint"></p>
+    </form>
+
+    <section id="result" aria-live="polite"></section>
+
+    <ul id="legend" class="legend" aria-label="ความหมายของสัญลักษณ์"></ul>
+    <div id="contact" class="contact">
+      <p id="foot" class="foot"></p>
+      <a id="line" class="line-btn" target="_blank" rel="noopener" hidden></a>
+    </div>
+  </main>
+</div>
+
+<footer id="partners" class="partners" hidden>
+  <div class="partners-plate"><img id="partners-img" alt=""></div>
+</footer>
+
+<script>
+/* ===================== ตั้งค่าตรงนี้ ===================== */
+const CONFIG = {
+  // วาง Web app URL ที่ได้จาก Google Apps Script (ลงท้ายด้วย /exec)
+  // ปล่อยว่างไว้ = โหมดตัวอย่าง
+  API_URL: "https://script.google.com/macros/s/AKfycbxPcNdFtCScQWxKXPgmfH0tyc9-v3GN8ygbpi87vCbrnpY_uUhFBwgtGSFP9pmEyu74/exec",
+
+  BRAND: "Mastery-KU",        // ชื่อโครงการมุมซ้ายบน (เว้นว่าง = ไม่แสดง)
+  BRAND_LOGO: "brand/logo.png",   // โลโก้หน้าชื่อโครงการ (เว้นว่าง หรือไฟล์โหลดไม่ได้ = แสดงแค่ชื่อ)
+  TITLE: "ตรวจสอบสถานะเอกสาร",
+  SUBTITLE: "ตรวจสอบว่าเอกสารสมัครของคุณผ่านการตรวจแล้วหรือยัง",
+  SEARCH_LABEL: "ชื่อ - นามสกุล, อีเมล์ หรือ เลขบัตรประจำตัวประชาชน",
+  SEARCH_PLACEHOLDER: "สมชาย ศรีเกิด หรือ abc@gmail หรือ 1234567891234",
+  HINT: "เลขบัตรประจำตัวประชาชนจะไม่ถูกแสดงในผลลัพธ์",
+  FOOTER_TEXT: "หากผลที่เห็นไม่ตรงกับที่คุณส่งมา หรือต้องการสอบถามเพิ่มเติม กรุณาติดต่อแอดมิน",
+
+  // ภาพโลโก้ท้ายหน้า: วางไฟล์ภาพไว้ข้าง index.html (เว้น src ว่าง = ไม่แสดง)
+  // ถ้าไฟล์ไม่มีหรือโหลดไม่ได้ จะไม่แสดงแถบนี้เลย
+  FOOTER_IMAGE: { src: "footer-logos.png", alt: "โลโก้ KU และ CMIT" },
+
+  // ช่องทางติดต่อแอดมิน (ยังไม่ได้ใส่ข้อมูลจริง ใส่แล้วปุ่ม/ไลน์ไอดีจะขึ้นเอง)
+  //   url  = ลิงก์เปิดแชต LINE เช่น "https://line.me/R/ti/p/@ชื่อบัญชี" (ถ้าว่าง = ไม่แสดงปุ่ม)
+  //   id   = LINE ID ที่จะแสดงเป็นข้อความท้ายหน้า เช่น "@ชื่อบัญชี" (ถ้าว่าง = ไม่แสดง)
+  CONTACT: {
+    label: "ติดต่อแอดมินทาง LINE",
+    url: "https://lin.ee/XHg4dBJ",
+    id: "@711dupkk"
+  },
+  MIN_QUERY_LENGTH: 3,
+
+  // ชื่อหัวคอลัมน์ใน Sheet (ต้องตรงกับที่ Apps Script ส่งกลับมา)
+  TITLE_FIELD: "1.ชื่อ - นามสกุล",  // แสดงเป็นชื่อบนใบผลตรวจ
+  NOTE_FIELD: "หมายเหตุ",           // ข้อความจากเจ้าหน้าที่ (เว้นว่างในชีตได้)
+
+  // ผลสรุปที่เจ้าหน้าที่เลือก (ผ่าน / ไม่ผ่าน / รอตรวจสอบ) ใช้เป็นข้อความบนตราประทับ
+  // ถ้าช่องนี้ว่าง หรือยังไม่มีคอลัมน์ในชีต จะสรุปจากช่องติ๊กของแต่ละเอกสารแทน
+  STATUS_FIELD: "สถานะ",
+
+  // เอกสารที่ต้องตรวจ: field = ชื่อหัวคอลัมน์ในชีต, label = ชื่อที่แสดงบนเว็บ
+  DOCUMENTS: [
+    { field: "TPQI", label: "หลักฐานการสมัคร TPQI",
+      // ภาพตัวอย่างที่ถูกต้อง: วางไฟล์ภาพไว้ข้าง index.html แล้วใส่ชื่อไฟล์ที่นี่
+      // ถ้าไฟล์ยังไม่มีหรือโหลดไม่ได้ ระบบจะซ่อนส่วนนี้ไปเอง
+      example: { src: "tpqi-example.png", caption: "ดูตัวอย่างหลักฐานการสมัคร TPQI ที่ถูกต้อง", alt: "ตัวอย่างหลักฐานการสมัคร TPQI ที่ถูกต้อง" } },
+    { field: "สำเนาบัตรประชาชน", label: "สำเนาบัตรประชาชน" },
+    { field: "สำเนาวุฒิการศึกษา", label: "วุฒิการศึกษา" }
+  ],
+
+  // แสดงภาพตัวอย่างเมื่อเอกสารนั้นอยู่ในสถานะใด
+  //   bad = ไม่ผ่าน, missing = ยังไม่ได้รับ (ช่องว่าง), unmet = ไม่ติ๊ก (FALSE) / "ยังไม่ผ่าน"
+  EXAMPLE_WHEN: ["bad", "missing", "unmet"],
+
+  // คำในช่องสถานะของแต่ละเอกสาร -> สี
+  // ลำดับสำคัญ: เช็ก bad ก่อน เพราะ "ไม่ผ่าน" มีคำว่า "ผ่าน"
+  // ช่องว่าง = "ยังไม่ได้รับ" / ติ๊กถูก (TRUE) = ผ่าน / ไม่ติ๊ก (FALSE) = ยังไม่ผ่าน (สีแดง)
+  DOC_STATUS_KEYWORDS: {
+    bad:  ["ไม่", "แก้ไข", "ปฏิเสธ", "ตีกลับ"],
+    wait: ["รอ", "ระหว่าง", "กำลัง"],
+    ok:   ["ผ่าน", "ถูกต้อง", "ครบถ้วน", "เรียบร้อย", "สมบูรณ์", "อนุมัติ"]
+  },
+
+  // ข้อความบนตราประทับ (สรุปภาพรวม) ควรสั้น
+  OVERALL_LABELS: {
+    ok:      "ผ่านครบแล้ว",
+    bad:     "ต้องแก้ไข",
+    missing: "ยังไม่ครบ",
+    wait:    "รอตรวจสอบ"
+  },
+
+  // ข้อมูลตัวอย่างสำหรับโหมดทดสอบ (ใช้เมื่อ API_URL ว่าง)
+  // keys = ค่าที่ค้นหาแล้วจะเจอ, row = ข้อมูลที่แสดง
+  DEMO_DATA: [
+    { keys: ["สมชาย ใจดี", "somchai@example.com", "1111111111111"],
+      row: { "1.ชื่อ - นามสกุล": "สมชาย ใจดี", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "TRUE", "สำเนาวุฒิการศึกษา": "TRUE", "หมายเหตุ": "" } },
+    { keys: ["สมหญิง รักเรียน", "somying@example.com", "2222222222222"],
+      row: { "1.ชื่อ - นามสกุล": "สมหญิง รักเรียน", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "FALSE", "สำเนาวุฒิการศึกษา": "",
+             "หมายเหตุ": "ยังไม่ได้รับไฟล์วุฒิการศึกษา กรุณาส่งภายใน 25 ต.ค." } },
+    { keys: ["ประวิทย์ มั่นคง", "prawit@example.com", "3333333333333"],
+      row: { "1.ชื่อ - นามสกุล": "ประวิทย์ มั่นคง", "TPQI": "ผ่าน", "สำเนาบัตรประชาชน": "ไม่ผ่าน", "สำเนาวุฒิการศึกษา": "ผ่าน",
+             "หมายเหตุ": "สำเนาบัตรประชาชนไม่ชัดเจน กรุณาส่งใหม่พร้อมเซ็นรับรองสำเนา" } }
+  ]
+};
+/* ======================================================== */
+
+const $ = (s) => document.querySelector(s);
+const form = $("#form"), input = $("#q"), out = $("#result"), btn = $("#go");
+const NS = "http://www.w3.org/2000/svg";
+
+document.title = CONFIG.TITLE;
+$("#title").textContent = CONFIG.TITLE;
+$("#subtitle").textContent = CONFIG.SUBTITLE;
+$("#qlabel").textContent = CONFIG.SEARCH_LABEL;
+$("#hint").textContent = CONFIG.HINT || "";
+{
+  const c = CONFIG.CONTACT || {};
+  const parts = [CONFIG.FOOTER_TEXT, c.id ? "LINE ID: " + c.id : ""].filter(Boolean);
+  $("#foot").textContent = parts.join("\n");
+  if (c.url) {
+    const a = $("#line");
+    a.textContent = c.label || "ติดต่อแอดมินทาง LINE";
+    a.setAttribute("href", c.url);
+    a.hidden = false;
+  }
+}
+input.placeholder = CONFIG.SEARCH_PLACEHOLDER;
+if (CONFIG.BRAND || CONFIG.BRAND_LOGO) { $("#brand").textContent = CONFIG.BRAND || ""; $("#masthead").hidden = false; }
+if (CONFIG.BRAND_LOGO) {
+  const logo = $("#brand-logo");
+  logo.addEventListener("load", () => { logo.hidden = false; });   // แสดงเมื่อโหลดภาพได้เท่านั้น
+  logo.src = CONFIG.BRAND_LOGO;
+}
+if (!CONFIG.API_URL) $("#demo").classList.add("show");
+if (CONFIG.FOOTER_IMAGE && CONFIG.FOOTER_IMAGE.src) {
+  const img = $("#partners-img");
+  img.addEventListener("load", () => { $("#partners").hidden = false; });   // แสดงเมื่อโหลดภาพได้เท่านั้น
+  img.alt = CONFIG.FOOTER_IMAGE.alt || "";
+  img.src = CONFIG.FOOTER_IMAGE.src;
+}
+
+let currentRequest = 0;
+
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") n.className = v;
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids) n.append(kid);
+  return n;
+}
+
+function svg(tag, attrs = {}, ...kids) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  for (const kid of kids) n.append(kid);
+  return n;
+}
+
+/* ช่องติ๊กแบบกระดาษ: ✓ ผ่าน / ✕ ไม่ผ่าน / นาฬิกา รอตรวจ / ช่องว่างประ = ยังไม่ได้รับ */
+function mark(kind, small = false) {
+  const s = svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+    "stroke-width": "3", "stroke-linecap": "round", "stroke-linejoin": "round" });
+  if (kind === "ok") s.append(svg("path", { d: "M5.5 12.5l4.2 4.2L18.5 7.5" }));
+  else if (kind === "bad") s.append(svg("path", { d: "M7 7l10 10" }), svg("path", { d: "M17 7L7 17" }));
+  else if (kind === "wait") s.append(svg("path", { d: "M12 6.5V12l3.5 2.2" }));
+  else if (kind === "neutral") s.append(svg("path", { d: "M12 12h.01" }));
+  return el("span", { class: "mark " + kind + (small ? " sm" : ""), "aria-hidden": "true" }, s);
+}
+
+/* ---------- ตีความสถานะของแต่ละเอกสาร ---------- */
+// คืนค่า { kind: ok | wait | bad | missing | neutral, label }
+function docState(raw) {
+  const v = String(raw == null ? "" : raw).trim();
+  if (!v) return { kind: "missing", label: "ยังไม่ได้รับ" };
+  const u = v.toUpperCase();
+  if (u === "TRUE" || v === "✓" || v === "✔") return { kind: "ok", label: "ผ่าน" };
+  if (u === "FALSE") return { kind: "bad", label: "ยังไม่ผ่าน", tag: "unmet" };   // สีแดง ✕ (ไม่ใช่นาฬิกา ซึ่งเป็นของ "รอตรวจสอบ")
+  for (const [kind, words] of Object.entries(CONFIG.DOC_STATUS_KEYWORDS)) {
+    if (words.some((w) => v.includes(w))) return { kind, label: v };
+  }
+  return { kind: "neutral", label: v };
+}
+
+// สรุปภาพรวมจากสถานะทุกเอกสาร: ไม่ผ่าน > ยังไม่ครบ > รอตรวจ > ผ่านครบ
+function overall(states) {
+  const count = (k) => states.filter((s) => s.kind === k).length;
+  let kind;
+  if (count("bad")) kind = "bad";
+  else if (count("missing")) kind = "missing";
+  else if (count("ok") === states.length) kind = "ok";
+  else kind = "wait";
+  return {
+    kind: kind === "missing" ? "wait" : kind,   // สีเหลือง
+    label: CONFIG.OVERALL_LABELS[kind],
+    okCount: count("ok")
+  };
+}
+
+/* ---------- แสดงผล ---------- */
+function showMessage(title, text, kind = "none") {
+  out.replaceChildren(
+    el("div", { class: "sheet msg k-" + kind, role: kind === "bad" ? "alert" : "status" },
+      el("h2", { class: "name" }, title),
+      el("p", { class: "msg-text" }, text))
+  );
+}
+
+function showLoading() {
+  out.replaceChildren(
+    el("div", { class: "sheet k-none", role: "status" },
+      el("span", { class: "sr-only" }, "กำลังค้นหา…"),
+      el("div", { class: "sk sk-line w60", "aria-hidden": "true" }),
+      el("div", { class: "sk sk-line w40", "aria-hidden": "true" }),
+      el("div", { class: "sk-rows", "aria-hidden": "true" },
+        el("div", { class: "sk sk-line" }), el("div", { class: "sk sk-line" }), el("div", { class: "sk sk-line" })))
+  );
+}
+
+/* ภาพตัวอย่างที่ถูกต้อง: แตะภาพเพื่อเปิดขนาดเต็ม / ซ่อนเองถ้าโหลดภาพไม่ได้ */
+function needsExample(s) {
+  return CONFIG.EXAMPLE_WHEN.includes(s.kind) || (s.tag && CONFIG.EXAMPLE_WHEN.includes(s.tag));
+}
+
+function exampleBlock(ex) {
+  const img = el("img", { src: ex.src, alt: ex.alt || ex.caption || "", loading: "lazy" });
+  const box = el("details", { class: "example", open: "" },
+    el("summary", {}, ex.caption || "ดูตัวอย่างที่ถูกต้อง"),
+    el("a", { href: ex.src, target: "_blank", rel: "noopener" }, img));
+  img.addEventListener("error", () => box.remove());
+  return box;
+}
+
+function renderCard(row, updated) {
+  let states = CONFIG.DOCUMENTS.map((d) => docState(row[d.field]));
+  let sum = overall(states);
+
+  // ผลสรุปจากเจ้าหน้าที่ตัดสินเหนือผลจากช่องติ๊ก (ส่วน "ผ่านแล้ว X จาก Y" ยังนับจากช่องติ๊ก)
+  if (CONFIG.STATUS_FIELD) {
+    const decided = docState(row[CONFIG.STATUS_FIELD]);
+    if (decided.kind !== "missing") {
+      sum = { ...sum, kind: decided.kind === "neutral" ? "none" : decided.kind, label: decided.label };
+      // เจ้าหน้าที่ตั้ง "รอตรวจสอบ" = ช่องที่ไม่ติ๊ก (FALSE) ยังไม่ใช่ผลตัดสินว่าไม่ผ่าน
+      // จึงแสดงเป็น "รอตรวจสอบ" (นาฬิกา สีเหลือง) และไม่โชว์ภาพตัวอย่าง
+      // ส่วนข้อความ "ไม่ผ่าน" ที่เจ้าหน้าที่พิมพ์ในช่องเอกสารยังเป็นสีแดงตามเดิม
+      if (decided.kind === "wait") {
+        states = states.map((s) => (s.tag === "unmet" ? { kind: "wait", label: "รอตรวจสอบ" } : s));
+      }
+    }
+  }
+
+  const head = el("div", { class: "sheet-head" },
+    el("div", { class: "who" },
+      el("h2", { class: "name" }, row[CONFIG.TITLE_FIELD] || "ผู้สมัคร"),
+      el("p", { class: "tally" }, `ผ่านแล้ว ${sum.okCount} จาก ${states.length} รายการ`)),
+    el("div", { class: "stamp" }, sum.label)
+  );
+
+  const list = el("ul", { class: "docs" },
+    ...CONFIG.DOCUMENTS.map((d, i) => {
+      const s = states[i];
+      const item = el("li", { class: "doc" },
+        el("div", { class: "doc-row" },
+          mark(s.kind),
+          el("span", { class: "doc-name" }, d.label),
+          el("span", { class: "leader", "aria-hidden": "true" }),
+          el("span", { class: "doc-status " + s.kind }, s.label)));
+      if (d.example && needsExample(s)) item.append(exampleBlock(d.example));
+      return item;
+    })
+  );
+
+  const card = el("article", { class: "sheet k-" + sum.kind }, head, list);
+
+  const note = String(row[CONFIG.NOTE_FIELD] || "").trim();
+  if (note) {
+    card.append(el("div", { class: "note" },
+      el("span", { class: "note-title" }, "หมายเหตุจากเจ้าหน้าที่"), note));
+  }
+  if (updated) card.append(el("p", { class: "sheet-foot" }, "ข้อมูล ณ " + updated));
+  return card;
+}
+
+function renderResults(rows, updated) {
+  if (!rows.length) {
+    showMessage("ไม่พบข้อมูล",
+      "ตรวจสอบชื่อ - นามสกุล, อีเมล์ หรือ เลขบัตรประจำตัวประชาชนอีกครั้ง หากยังไม่พบ กรุณาติดต่อเจ้าหน้าที่");
+    return;
+  }
+  out.replaceChildren(...rows.map((r) => renderCard(r, updated)));
+}
+
+/* ---------- ค้นหา ---------- */
+function normalize(s) {
+  return String(s).toLowerCase().replace(/[\s\-]/g, "");
+}
+
+function demoSearch(q) {
+  const nq = normalize(q);
+  return CONFIG.DEMO_DATA.filter((d) => d.keys.some((k) => normalize(k) === nq)).map((d) => d.row);
+}
+
+async function search(q, { pushUrl = true } = {}) {
+  q = q.trim();
+  if (q.length < CONFIG.MIN_QUERY_LENGTH) {
+    showMessage("กรอกข้อมูลให้ครบอีกนิด", `ต้องมีอย่างน้อย ${CONFIG.MIN_QUERY_LENGTH} ตัวอักษร`);
+    return;
+  }
+  const id = ++currentRequest;
+  btn.disabled = true;
+  showLoading();
+
+  try {
+    let data;
+    if (!CONFIG.API_URL) {
+      await new Promise((r) => setTimeout(r, 450));
+      data = { ok: true, results: demoSearch(q), updated: "20/10/2026 18:50" };
+    } else {
+      const res = await fetch(CONFIG.API_URL + "?q=" + encodeURIComponent(q));
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      data = await res.json();
+    }
+    if (id !== currentRequest) return; // มีการค้นหาใหม่กว่าแล้ว
+    if (!data.ok) throw new Error(data.error || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+    renderResults(data.results || [], data.updated);
+    if (pushUrl) history.replaceState(null, "", "?q=" + encodeURIComponent(q));
+  } catch (err) {
+    if (id !== currentRequest) return;
+    console.error(err);
+    showMessage("เชื่อมต่อไม่สำเร็จ",
+      "ลองค้นหาอีกครั้งในอีกสักครู่ หากยังเป็นอยู่ กรุณาติดต่อเจ้าหน้าที่", "bad");
+  } finally {
+    if (id === currentRequest) btn.disabled = false;
+  }
+}
+
+/* ความหมายสัญลักษณ์ */
+for (const [kind, label] of [["ok", "ผ่าน"], ["bad", "ไม่ผ่าน"], ["wait", "รอตรวจสอบ"], ["missing", "ยังไม่ได้รับ"]]) {
+  $("#legend").append(el("li", {}, mark(kind, true), label));
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  search(input.value);
+});
+
+// เปิดลิงก์แบบ ?q=ชื่อ แล้วค้นหาให้อัตโนมัติ
+const initial = new URLSearchParams(location.search).get("q");
+if (initial) {
+  input.value = initial;
+  search(initial, { pushUrl: false });
+}
+</script>
+</body>
+</html>
