@@ -140,6 +140,7 @@
   button:hover { filter: brightness(1.14); }
   button:disabled { opacity: .6; cursor: progress; }
   .hint { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+  .hint.multi { margin: 0 0 14px; }
 
   /* ---------- ใบผลตรวจเอกสาร ---------- */
   #result { margin-top: 36px; display: grid; gap: 20px; }
@@ -154,6 +155,10 @@
   .who { min-width: 0; }
   .name { margin: 0; font-family: var(--font-head); font-weight: 500; font-size: 24px; line-height: 1.4; word-break: break-word; }
   .tally { margin: 2px 0 0; color: var(--muted); }
+  .name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+  .edu { display: inline-flex; align-items: baseline; gap: 7px; padding: 0 10px; border: 1px solid var(--rule-strong); border-radius: 4px; font-size: 15px; line-height: 1.7; white-space: nowrap; }
+  .edu-label { color: var(--muted); }
+  .edu-value { font-weight: 600; }
 
   /* ตราประทับ: จุดที่ตั้งใจให้จำ ปรากฏครั้งเดียวตอนแสดงผลลัพธ์ */
   .stamp {
@@ -204,6 +209,7 @@
   .note-title { display: block; margin-bottom: 2px; font-size: 15px; font-weight: 700; color: var(--k-ink); }
 
   /* ภาพตัวอย่างที่ถูกต้อง (ขึ้นใต้แถวเอกสารที่ยังไม่ผ่าน) */
+  .doc-rule { margin: 8px 0 2px 38px; padding: 2px 0 2px 12px; border-left: 3px solid var(--rule-strong); font-size: 15px; color: var(--muted); }
   .example { margin: 12px 0 2px 38px; }
   .example summary { cursor: pointer; font-weight: 600; color: var(--k-ink); }
   .example a { display: block; margin-top: 10px; }
@@ -250,6 +256,7 @@
     .name { font-size: 22px; }
     .doc-status { max-width: 40%; }
     .example { margin-left: 0; }
+    .doc-rule { margin-left: 0; }
     .line-btn { width: 100%; }
     .partners-plate { padding: 12px 14px; }
   }
@@ -305,7 +312,7 @@
 const CONFIG = {
   // วาง Web app URL ที่ได้จาก Google Apps Script (ลงท้ายด้วย /exec)
   // ปล่อยว่างไว้ = โหมดตัวอย่าง
-  API_URL: "https://script.google.com/macros/s/AKfycbxPcNdFtCScQWxKXPgmfH0tyc9-v3GN8ygbpi87vCbrnpY_uUhFBwgtGSFP9pmEyu74/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbxhx7eK1OvsSbbLtVhVKKK4Wnp63Nbj4o9-zoFCCFfY8b-7eAhS6Ydnv_vdg7jzSXcV/exec",
 
   BRAND: "Mastery-KU",        // ชื่อโครงการมุมซ้ายบน (เว้นว่าง = ไม่แสดง)
   BRAND_LOGO: "brand/logo.png",   // โลโก้หน้าชื่อโครงการ (เว้นว่าง หรือไฟล์โหลดไม่ได้ = แสดงแค่ชื่อ)
@@ -313,7 +320,7 @@ const CONFIG = {
   SUBTITLE: "ตรวจสอบว่าเอกสารสมัครของคุณผ่านการตรวจแล้วหรือยัง",
   SEARCH_LABEL: "ชื่อ - นามสกุล, อีเมล์ หรือ เลขบัตรประจำตัวประชาชน",
   SEARCH_PLACEHOLDER: "สมชาย ศรีเกิด หรือ abc@gmail หรือ 1234567891234",
-  HINT: "เลขบัตรประจำตัวประชาชนจะไม่ถูกแสดงในผลลัพธ์",
+  HINT: "พิมพ์ชื่อหรืออีเมลบางส่วนก็ได้ ส่วนเลขบัตรประจำตัวประชาชนต้องกรอกให้ครบ และจะไม่ถูกแสดงในผลลัพธ์",
   FOOTER_TEXT: "หากผลที่เห็นไม่ตรงกับที่คุณส่งมา หรือต้องการสอบถามเพิ่มเติม กรุณาติดต่อแอดมิน",
 
   // ภาพโลโก้ท้ายหน้า: วางไฟล์ภาพไว้ข้าง index.html (เว้น src ว่าง = ไม่แสดง)
@@ -332,6 +339,8 @@ const CONFIG = {
 
   // ชื่อหัวคอลัมน์ใน Sheet (ต้องตรงกับที่ Apps Script ส่งกลับมา)
   TITLE_FIELD: "1.ชื่อ - นามสกุล",  // แสดงเป็นชื่อบนใบผลตรวจ
+  EDU_FIELD: "วุฒิการศึกษา",        // วุฒิของผู้สมัคร แสดงข้างชื่อ (ชื่อหัวคอลัมน์ในชีต เว้นว่าง = ไม่แสดง)
+  EDU_LABEL: "วุฒิ",                // คำนำหน้าค่าวุฒิ
   NOTE_FIELD: "หมายเหตุ",           // ข้อความจากเจ้าหน้าที่ (เว้นว่างในชีตได้)
 
   // ผลสรุปที่เจ้าหน้าที่เลือก (ผ่าน / ไม่ผ่าน / รอตรวจสอบ) ใช้เป็นข้อความบนตราประทับ
@@ -345,7 +354,10 @@ const CONFIG = {
       // ถ้าไฟล์ยังไม่มีหรือโหลดไม่ได้ ระบบจะซ่อนส่วนนี้ไปเอง
       example: { src: "tpqi-example.png", caption: "ดูตัวอย่างหลักฐานการสมัคร TPQI ที่ถูกต้อง", alt: "ตัวอย่างหลักฐานการสมัคร TPQI ที่ถูกต้อง" } },
     { field: "สำเนาบัตรประชาชน", label: "สำเนาบัตรประชาชน" },
-    { field: "สำเนาวุฒิการศึกษา", label: "วุฒิการศึกษา" }
+    { field: "สำเนาวุฒิการศึกษา", label: "วุฒิการศึกษา",
+      // ข้อความเงื่อนไขใต้แถวนี้ แสดงเมื่อเอกสารอยู่ในสถานะที่ระบุใน when
+      // (bad = ไม่ผ่าน / ยังไม่ผ่าน, ไม่แสดงตอนเจ้าหน้าที่ตั้งสถานะรวมเป็น "รอตรวจสอบ")
+      rule: { text: "เงื่อนไขวุฒิการศึกษา: ต้องมีวุฒิเทียบเท่าหรือมากกว่า ปวส. หรือปริญญาบัณฑิต หากเป็นนักศึกษาที่กำลังศึกษาให้แนบเอกสารรับรองการเป็นนักศึกษามาแทน", when: ["bad"] } }
   ],
 
   // แสดงภาพตัวอย่างเมื่อเอกสารนั้นอยู่ในสถานะใด
@@ -373,12 +385,12 @@ const CONFIG = {
   // keys = ค่าที่ค้นหาแล้วจะเจอ, row = ข้อมูลที่แสดง
   DEMO_DATA: [
     { keys: ["สมชาย ใจดี", "somchai@example.com", "1111111111111"],
-      row: { "1.ชื่อ - นามสกุล": "สมชาย ใจดี", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "TRUE", "สำเนาวุฒิการศึกษา": "TRUE", "หมายเหตุ": "" } },
+      row: { "1.ชื่อ - นามสกุล": "สมชาย ใจดี", "วุฒิการศึกษา": "ปริญญาตรี", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "TRUE", "สำเนาวุฒิการศึกษา": "TRUE", "หมายเหตุ": "" } },
     { keys: ["สมหญิง รักเรียน", "somying@example.com", "2222222222222"],
-      row: { "1.ชื่อ - นามสกุล": "สมหญิง รักเรียน", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "FALSE", "สำเนาวุฒิการศึกษา": "",
+      row: { "1.ชื่อ - นามสกุล": "สมหญิง รักเรียน", "วุฒิการศึกษา": "ปวส.", "TPQI": "TRUE", "สำเนาบัตรประชาชน": "FALSE", "สำเนาวุฒิการศึกษา": "",
              "หมายเหตุ": "ยังไม่ได้รับไฟล์วุฒิการศึกษา กรุณาส่งภายใน 25 ต.ค." } },
     { keys: ["ประวิทย์ มั่นคง", "prawit@example.com", "3333333333333"],
-      row: { "1.ชื่อ - นามสกุล": "ประวิทย์ มั่นคง", "TPQI": "ผ่าน", "สำเนาบัตรประชาชน": "ไม่ผ่าน", "สำเนาวุฒิการศึกษา": "ผ่าน",
+      row: { "1.ชื่อ - นามสกุล": "ประวิทย์ มั่นคง", "วุฒิการศึกษา": "ปวช.", "TPQI": "ผ่าน", "สำเนาบัตรประชาชน": "ไม่ผ่าน", "สำเนาวุฒิการศึกษา": "ไม่ผ่าน",
              "หมายเหตุ": "สำเนาบัตรประชาชนไม่ชัดเจน กรุณาส่งใหม่พร้อมเซ็นรับรองสำเนา" } }
   ]
 };
@@ -503,6 +515,11 @@ function needsExample(s) {
   return CONFIG.EXAMPLE_WHEN.includes(s.kind) || (s.tag && CONFIG.EXAMPLE_WHEN.includes(s.tag));
 }
 
+// ข้อความเงื่อนไขใต้แถวเอกสาร (เช่น เงื่อนไขวุฒิการศึกษา) แสดงเมื่อสถานะตรงกับ rule.when
+function ruleBlock(rule) {
+  return el("p", { class: "doc-rule" }, rule.text);
+}
+
 function exampleBlock(ex) {
   const img = el("img", { src: ex.src, alt: ex.alt || ex.caption || "", loading: "lazy" });
   const box = el("details", { class: "example", open: "" },
@@ -510,6 +527,15 @@ function exampleBlock(ex) {
     el("a", { href: ex.src, target: "_blank", rel: "noopener" }, img));
   img.addEventListener("error", () => box.remove());
   return box;
+}
+
+// วุฒิการศึกษาข้างชื่อ: ไม่มีคอลัมน์ในชีต หรือเซลล์ว่าง = ไม่แสดงอะไร
+function eduChip(row) {
+  const v = CONFIG.EDU_FIELD ? String(row[CONFIG.EDU_FIELD] == null ? "" : row[CONFIG.EDU_FIELD]).trim() : "";
+  if (!v) return [];
+  return [el("span", { class: "edu" },
+    CONFIG.EDU_LABEL ? el("span", { class: "edu-label" }, CONFIG.EDU_LABEL) : "",
+    el("span", { class: "edu-value" }, v))];
 }
 
 function renderCard(row, updated) {
@@ -532,7 +558,9 @@ function renderCard(row, updated) {
 
   const head = el("div", { class: "sheet-head" },
     el("div", { class: "who" },
-      el("h2", { class: "name" }, row[CONFIG.TITLE_FIELD] || "ผู้สมัคร"),
+      el("div", { class: "name-row" },
+        el("h2", { class: "name" }, row[CONFIG.TITLE_FIELD] || "ผู้สมัคร"),
+        ...eduChip(row)),
       el("p", { class: "tally" }, `ผ่านแล้ว ${sum.okCount} จาก ${states.length} รายการ`)),
     el("div", { class: "stamp" }, sum.label)
   );
@@ -547,6 +575,7 @@ function renderCard(row, updated) {
           el("span", { class: "leader", "aria-hidden": "true" }),
           el("span", { class: "doc-status " + s.kind }, s.label)));
       if (d.example && needsExample(s)) item.append(exampleBlock(d.example));
+      if (d.rule && d.rule.text && (d.rule.when || ["bad"]).includes(s.kind)) item.append(ruleBlock(d.rule));
       return item;
     })
   );
@@ -562,13 +591,21 @@ function renderCard(row, updated) {
   return card;
 }
 
-function renderResults(rows, updated) {
+function renderResults(rows, updated, total) {
   if (!rows.length) {
     showMessage("ไม่พบข้อมูล",
       "ตรวจสอบชื่อ - นามสกุล, อีเมล์ หรือ เลขบัตรประจำตัวประชาชนอีกครั้ง หากยังไม่พบ กรุณาติดต่อเจ้าหน้าที่");
     return;
   }
-  out.replaceChildren(...rows.map((r) => renderCard(r, updated)));
+  const cards = rows.map((r) => renderCard(r, updated));
+  // ค้นแบบบางส่วนอาจเจอหลายคน: บอกจำนวน และแนะนำให้กรอกให้ครบ
+  if (rows.length > 1 || total > rows.length) {
+    const n = Math.max(total || 0, rows.length);
+    cards.unshift(el("p", { class: "hint multi" },
+      `พบ ${n} รายการ` + (n > rows.length ? ` (แสดง ${rows.length} รายการแรก)` : "") +
+      " หากไม่ใช่ของคุณ กรุณากรอกชื่อ - นามสกุลให้ครบ หรือใช้เลขบัตรประจำตัวประชาชน"));
+  }
+  out.replaceChildren(...cards);
 }
 
 /* ---------- ค้นหา ---------- */
@@ -576,9 +613,13 @@ function normalize(s) {
   return String(s).toLowerCase().replace(/[\s\-]/g, "");
 }
 
+// โหมดตัวอย่างจำลองกติกาเดียวกับ Code.gs: keys = [ชื่อ, อีเมล, เลขบัตร]
+// ชื่อและอีเมลค้นแบบบางส่วนได้ เลขบัตรต้องตรงทั้งค่า
 function demoSearch(q) {
   const nq = normalize(q);
-  return CONFIG.DEMO_DATA.filter((d) => d.keys.some((k) => normalize(k) === nq)).map((d) => d.row);
+  return CONFIG.DEMO_DATA.filter((d) =>
+    d.keys.some((k, i) => (i === 2 ? normalize(k) === nq : normalize(k).includes(nq)))
+  ).map((d) => d.row);
 }
 
 async function search(q, { pushUrl = true } = {}) {
@@ -595,7 +636,8 @@ async function search(q, { pushUrl = true } = {}) {
     let data;
     if (!CONFIG.API_URL) {
       await new Promise((r) => setTimeout(r, 450));
-      data = { ok: true, results: demoSearch(q), updated: "20/10/2026 18:50" };
+      const found = demoSearch(q);
+      data = { ok: true, results: found, total: found.length, updated: "20/10/2026 18:50" };
     } else {
       const res = await fetch(CONFIG.API_URL + "?q=" + encodeURIComponent(q));
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -603,7 +645,7 @@ async function search(q, { pushUrl = true } = {}) {
     }
     if (id !== currentRequest) return; // มีการค้นหาใหม่กว่าแล้ว
     if (!data.ok) throw new Error(data.error || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
-    renderResults(data.results || [], data.updated);
+    renderResults(data.results || [], data.updated, data.total);
     if (pushUrl) history.replaceState(null, "", "?q=" + encodeURIComponent(q));
   } catch (err) {
     if (id !== currentRequest) return;
